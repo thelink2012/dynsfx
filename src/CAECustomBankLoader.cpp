@@ -16,12 +16,22 @@
 #include <injector/injector.hpp>
 #include <injector/calling.hpp>
 #include <injector/hooking.hpp>
+#include <injector/utility.hpp>
 #include "CAECustomBankLoader.hpp"
+#include "Queue.h"
+#include "CAEBankLoader.h"
+#include <map>
+#include <string>
+#include <cstdint>
+#include <algorithm>
+#include <vector>
+using namespace injector;
 
-using namespace modloader;
-
-CAbstractBankLoader banker;
-static const CAbstractBankLoader::SndMap_t* m_WorkingSoundMap;
+void BankerInitialise(CAECustomBankLoader&);
+void BankerPatch();
+void BankerFlush();
+void BankerUpdate();
+CAECustomBankLoader* m_pBankLoader = nullptr;            // Pointer to our custom bank loader
 
 // Request status
 enum
@@ -148,7 +158,7 @@ class CAEBankInfo
 
         std::string           m_szPakName;      // pak file name
         std::string           m_szFilepath;     // BANK file
-        uint32_t              m_Hash;           // szPakName hash
+        /*uint32_t              m_Hash;           // szPakName hash*/
         bool                  m_bHasBank;       // Structure has been initialized?
         short                 m_BankId;         // Global bank index
         short                 m_LocalBankId;    // Local bank index (relative to SFX Pak first bank index -- 1 based)
@@ -181,7 +191,6 @@ class CAECustomBankLoader : public CAEBankLoader
             char*           pBuffer;            // Buffer to write sound data into
             unsigned int    dwOffset;           // Offset to read in file
             unsigned int    dwSize;             // Size to read in file
-            const modloader::file* pFile;       // Wave file related to this block, or null
         };
         
         static void Patch();        // Patch the game code to use our custom bank loader
@@ -206,18 +215,18 @@ class CAECustomBankLoader : public CAEBankLoader
         }
         
         // Sets the wave sound map we're working on to load, may be null if there's no wave related to the bank
-        void SetWorkingBank(const CAbstractBankLoader::SndMap_t* map)
+        void SetWorkingBank(std::nullptr_t/*const CAbstractBankLoader::SndMap_t* map*/)
         {
-            ::m_WorkingSoundMap = map;
+            //::m_WorkingSoundMap = map;
         }
 
         // Gets the wave sound map we're working to load right now, may be null if there's no wave related to the bank
-        const CAbstractBankLoader::SndMap_t* GetWorkingBank()
+        const /*CAbstractBankLoader::SndMap_t**/std::nullptr_t GetWorkingBank()
         {
-            return ::m_WorkingSoundMap;
+            return /*::m_WorkingSoundMap*/ nullptr;
         }
 
-
+/*
         // Gets the global bank id related to the specified sfxpak and local bank id
         // Returns -1 if none found
         int GetGlobalBank(size_t pakhash, uint16_t bank)
@@ -242,6 +251,7 @@ class CAECustomBankLoader : public CAEBankLoader
             }
             return -1;
         }
+*/
        
         // Reloads the specified bank slot
         void ReloadBankSlot(uint16_t bankslot);
@@ -279,7 +289,7 @@ bool CAECustomBankLoader::PostInitialise()
         pBankInfo = new CAEBankInfo[this->m_usNumBanks];
         this->InitialiseBankInfo();
 
-        banker.Initialise(*this);
+        /*banker.Initialise(*this)*/ BankerInitialise(*this);
         return true;
     }
     return false;
@@ -330,14 +340,14 @@ void CAECustomBankLoader::InitialiseBankInfo()
     {
         auto* lookup = &this->m_pBankLookup[i];
         pakname = GetPakName(lookup->m_iPak);
-        tolower(pakname);
+        std::transform(pakname.begin(), pakname.end(), pakname.begin(), ::tolower);
 
         // Read the bank header from the SFXPak file
         if(pBankInfo[i].FetchBankFile(lookup, i, ++localBankId[pakname],
             pakname.data(),
             lookup->m_dwOffset, lookup->m_dwSize) == false)
         {
-            plugin_ptr->Log("Warning: Failed to fetch bank file %s", GetPakName(lookup->m_iPak));
+            /*plugin_ptr->Log("Warning: Failed to fetch bank file %s", GetPakName(lookup->m_iPak));*/
         }
     }
 }
@@ -374,7 +384,7 @@ bool CAEBankInfo::FetchBankFile(CAEBankLookupItem* pLookup, short usBankId, shor
                                 std::string szPakName, size_t dwOffset, size_t dwSize)
 {
     bool result = false;
-    std::string szFullPath = banker.GetSfxPakFullPath(szPakName);
+    std::string szFullPath = /*banker.GetSfxPakFullPath(szPakName)*/std::string("audio/sfx/") + szPakName;
 
     // Open the file to check if it exists and to read the bank header
     HANDLE hFile = CreateFileA(szFullPath.data(), GENERIC_READ, FILE_SHARE_READ, nullptr,
@@ -396,7 +406,7 @@ bool CAEBankInfo::FetchBankFile(CAEBankLookupItem* pLookup, short usBankId, shor
             // Setup information about this bank......
             this->m_szFilepath  = std::move(szFullPath);
             this->m_szPakName   = std::move(szPakName);
-            this->m_Hash        = modloader::hash(this->m_szPakName);
+            /*this->m_Hash        = modloader::hash(this->m_szPakName);*/
             pLookup->m_dwOffset = dwOffset;
             pLookup->m_dwSize   = dwSize;
 
@@ -437,12 +447,13 @@ void CAEBankInfo::ProcessVirtualBank()
     memcpy(h.m_pLookup, oh.m_pLookup, sizeof(*h.m_pLookup));
     memcpy(&h.m_Header, &oh.m_Header, sizeof(h.m_Header));
 
-    banker.m_pBankLoader->SetWorkingBank(nullptr);
+    m_pBankLoader->SetWorkingBank(nullptr);
 
+    /*
     // Do offset customization only if there's any wave on this bank
     if(auto pSounds = banker.GetSoundMap(this->m_Hash, this->m_LocalBankId))
     {
-        banker.m_pBankLoader->SetWorkingBank(pSounds);
+        m_pBankLoader->SetWorkingBank(pSounds);
 
         // Iterate on the sounds information array to modify the offsets
         for(int i = 0; i < h.m_Header.m_nSounds; ++i)
@@ -470,6 +481,7 @@ void CAEBankInfo::ProcessVirtualBank()
         // Add accumulator into the bank size
         h.m_pLookup->m_dwSize += accumulator;
     }
+    */
 }
 
 
@@ -639,7 +651,7 @@ void CAECustomBankLoader::LoadRequestSplit(int i)
         auto& block = **x;                  // The block requested
         if(block.dwSize == 0) continue;     // Ignore this block
         
-        if(block.pFile == nullptr) // Requesting from the big bank file?
+        if(/*block.pFile == nullptr*/true) // Requesting from the big bank file?
         {
             if(!IsValidHandle(hBank))   // Bank not opened yet? Open it!
                 hBank = OpenForReading(f.m_szFilepath.c_str(), 0);
@@ -649,6 +661,7 @@ void CAECustomBankLoader::LoadRequestSplit(int i)
          }
         else
         {
+            /*
             // Read from another buffer (probably a wave file)
             if((hFile = OpenForReading(block.pFile->fullpath(fbuffer).data(), 0)) != INVALID_HANDLE_VALUE)
             {
@@ -659,6 +672,7 @@ void CAECustomBankLoader::LoadRequestSplit(int i)
             {
                 plugin_ptr->Log("Failed to open wave file for reading: \"%s\"", fbuffer.data());
             }
+            */
         }
     }
  
@@ -709,7 +723,7 @@ auto CAECustomBankLoader::GetRequestPlan(CAESoundRequest& r) -> SPlan**
     {
         // If there's no custom wave file on this bank, just read the bank normally
         SPlan& item = *NewPlan();
-        item.pFile   = 0;
+        /*item.pFile   = 0;*/
         item.dwOffset= dwOffset;
         item.dwSize  = dwSize;
         item.pBuffer = pBuffer;
@@ -728,18 +742,18 @@ auto CAECustomBankLoader::GetRequestPlan(CAESoundRequest& r) -> SPlan**
                 item.pBuffer    = &pBuffer[bSingleSound? 0 : vh.GetSoundOffsetRaw(i)];
                 item.dwSize     = vh.GetSoundSize(i);
 
-                auto pSound = banker.FindSound(*pSounds, i);
+                /*auto pSound = banker.FindSound(*pSounds, i);
                 if(pSound && GetFileAttributesA(pSound->file->fullpath(fbuffer).data()) != INVALID_FILE_ATTRIBUTES) // Has wave for this sound?
                 {
                     // Start reading after the wave header
                     item.dwOffset   = pSound->sound_offset;
                     item.pFile      = pSound->file;
                 }
-                else
+                else*/
                 {
                     // Start reading at the sound offset
                     item.dwOffset = oh.GetSoundOffset(i);
-                    item.pFile = 0;
+                    //item.pFile = 0;
                 }
             }
         }
@@ -747,12 +761,10 @@ auto CAECustomBankLoader::GetRequestPlan(CAESoundRequest& r) -> SPlan**
         // If there's any request after all, do some smart processing
         if(nRequests > 0)
         {
-            // Sort the request plan by file and offset
+            // Sort the request plan by offset
             std::sort(&aSortedPlan[0], &aSortedPlan[nRequests], [](const SPlan* a, const SPlan* b)
             {
-                // The big bank file should come first and sorted by offset!
-                if(a->pFile == b->pFile) return a->dwOffset < b->dwOffset;
-                return(a->pFile == 0);
+                return a->dwOffset < b->dwOffset;
             });
             
             // Make all continuous block a single block
@@ -763,7 +775,7 @@ auto CAECustomBankLoader::GetRequestPlan(CAESoundRequest& r) -> SPlan**
                 auto& next = aSortedPlan[i+1];
 
                 // The next block isn't on the standard bank file? We're done
-                if(next->pFile != 0) break;
+                if(/*next->pFile != 0*/false) break;
 
                 // If the next block is at the end of this block just make both a single block
                 if((curr->pBuffer + curr->dwSize) == next->pBuffer
@@ -843,33 +855,36 @@ void CAECustomBankLoader::Patch()
  *  CAbstractBankLoader::Initialise
  *      Initialises the abstract banker after the CAECustomBankLoader, and associated the abstract banker with the loader
  */
-void CAbstractBankLoader::Initialise(CAECustomBankLoader& AEBankLoader)
+void BankerInitialise(CAECustomBankLoader& AEBankLoader)
 {
     std::vector<size_t> hashes; // Hash of all sfxpak files
 
-    this->m_bHasInitialized = true;
-    this->m_pBankLoader = &AEBankLoader;
-    this->m_GENRL = modloader::hash("genrl");
+    //this->m_bHasInitialized = true;
+    //this->m_pBankLoader = &AEBankLoader;
+    m_pBankLoader = &AEBankLoader;
+    //this->m_GENRL = modloader::hash("genrl");
 
     // Find all sfxpak hashes, and map all sfxpakz in the waves map
-    for(int i = 0; i < AEBankLoader.m_iNumPakFiles; ++i)
+    /*for(int i = 0; i < AEBankLoader.m_iNumPakFiles; ++i)
     {
         auto hash = modloader::hash(AEBankLoader.GetPakName(i), ::tolower);
         hashes.emplace_back(hash);
         this->m_Waves[hash];                // Create map key with this pak file
-    }
+    }*/
 
+    /*
     // If no GENRL sfxpak, we have a problem.........
     if(std::count(hashes.begin(), hashes.end(), m_GENRL) == 0)
     {
         plugin_ptr->Log("Warning: Missing GENRL sfxpak, may cause problems!");
     }
+    */
 
     // GENRL waves map
-    auto& GENRL = m_Waves[m_GENRL];
+    /*auto& GENRL = m_Waves[m_GENRL];*/
 
     // Map any inexistent sfxpak wave map into the GENRL wave map
-    for(auto it = m_Waves.begin(); it != m_Waves.end(); )
+    /*for(auto it = m_Waves.begin(); it != m_Waves.end(); )
     {
         if(std::count(hashes.begin(), hashes.end(), it->first) == 0)
         {
@@ -879,14 +894,14 @@ void CAbstractBankLoader::Initialise(CAECustomBankLoader& AEBankLoader)
             this->WarnSFXPakDoNotExist();
         }
         else ++it;
-    }
+    }*/
 }
 
 /*
  *  CAbstractBankLoader::Patch
  *      Patches the game
  */
-void CAbstractBankLoader::Patch()
+void BankerPatch()
 {
     CAECustomBankLoader::Patch();
 }
@@ -895,17 +910,18 @@ void CAbstractBankLoader::Patch()
  *  CAbstractBankLoader::Flush
  *      Loads any pending request
  */
-void CAbstractBankLoader::Flush()
+void BankerFlush()
 {
-    this->m_pBankLoader->Flush();
+    m_pBankLoader->Flush();
 }
 
 /*
  *  CAbstractBankLoader::Update
  *      Install / Uninstall delayed wave files
  */
-void CAbstractBankLoader::Update()
+void BankerUpdate()
 {
+    /*
     if(this->IsUpdating())
     {
         std::set<uint32_t> slots;
@@ -934,6 +950,7 @@ void CAbstractBankLoader::Update()
 
         this->EndUpdate();
     }
+    */
 }
 
 /*
