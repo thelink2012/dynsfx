@@ -8,6 +8,6 @@
 #pragma once
 
 class CAECustomBankLoader;
-void BankerPatch();
+void InjectCustomBankLoader();
 
 #endif

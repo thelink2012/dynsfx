@@ -33,7 +33,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
                 {
                     // Check if the CAEBankLoader::Service function hasn't been detoured by Mod Loader already.
                     if(ReadMemory<uint8_t>(0x4DFE30, true) != 0xE9) // JMP
-                        BankerPatch();
+                        InjectCustomBankLoader();
                 }
                 return is_running;
             });
