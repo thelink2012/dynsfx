@@ -7,8 +7,9 @@
 #include <windows.h>
 #include <injector/injector.hpp>
 #include <injector/hooking.hpp>
-#include <CAECustomBankLoader.hpp>
 using namespace injector;
+
+extern void InjectCustomBankLoader();
 
 extern "C"
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
