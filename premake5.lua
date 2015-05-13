@@ -58,6 +58,8 @@ solution "DynSFX"
         defines { "NDEBUG" }
         optimize "Speed"
 
+    configuration "gmake"
+        buildoptions { "-std=gnu++11" }
     configuration "vs*"
         buildoptions { "/arch:IA32" }           -- disable the use of SSE/SSE2 instructions
 

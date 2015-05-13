@@ -3,14 +3,12 @@
  * Licensed under the MIT License, see LICENSE at top level directory.
  * 
  *  CAECustomBankLoader
- *  This is a custom bank loader for GTA San Andreas. The differences between the original and this are:
+ *  This is a custom bank loader for GTA San Andreas. The differences between the original and this one are:
  *      [*] Dynamically allocated sound buffers instead of BankSlot.dat pre-allocation.
- *      [*] Dedicated thread to load banks
- *      [*] Capable of reading bank dumps split on the diskse
- *      [*] Capable of reading wave files on the disk
+ *      [*] Dedicated thread to load banks.
  * 
- *  Before you ask if BankSlot.dat pre-allocation isn't faster...
- *  No, it isn't, because the game ends up allocating a temporary buffer of memory when reading the bank from the SFXPak anyway.
+ *  BankSlot.dat pre-allocation isn't faster than dynamically allocating because the game ends up allocating a
+ *  temporary buffer of memory when reading the bank from the SFXPak anyway.
  * 
  */
 #define WIN32_LEAN_AND_MEAN
